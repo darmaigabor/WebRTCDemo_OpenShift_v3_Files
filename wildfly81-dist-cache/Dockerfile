@@ -1,0 +1,42 @@
+FROM openshift/base-centos7
+
+MAINTAINER darmaigabor
+
+EXPOSE 8080 7600 57600
+
+ENV WILDFLY_VERSION=8.1 \
+    WILDFLY_VERSION_BIN=8.1.0.Final \
+    MAVEN_VERSION=3.3.9
+
+LABEL io.k8s.description="Platform for building and running JEE applications on WildFly 8.1 with distributed Infinispan cache (requires JGroups Gossip)" \
+      io.k8s.display-name="WildFly 8.1" \
+      io.openshift.expose-services="8080:http" \
+      io.openshift.tags="builder,wildfly,wildfly81" \
+      io.openshift.s2i.destination="/opt/s2i/destination"
+
+# Install Maven, Wildfly 8
+RUN INSTALL_PKGS="tar unzip bc which lsof java-1.8.0-openjdk java-1.8.0-openjdk-devel" && \
+    yum install -y --enablerepo=centosplus $INSTALL_PKGS && \
+    rpm -V $INSTALL_PKGS && \
+    yum clean all -y && \
+    (curl -v https://www.apache.org/dist/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz | \
+    tar -zx -C /usr/local) && \
+    ln -sf /usr/local/apache-maven-$MAVEN_VERSION/bin/mvn /usr/local/bin/mvn && \
+    mkdir -p /wildfly && \
+    (curl -v https://download.jboss.org/wildfly/$WILDFLY_VERSION_BIN/wildfly-$WILDFLY_VERSION_BIN.tar.gz | tar -zx --strip-components=1 -C /wildfly) && \
+    mkdir -p /opt/s2i/destination
+
+# Add s2i wildfly customizations
+ADD ./contrib/wfbin/standalone.conf /wildfly/bin/standalone.conf
+ADD ./contrib/wfcfg/standalone.xml /wildfly/standalone/configuration/standalone.xml
+
+# Copy the S2I scripts from the specific language image to $STI_SCRIPTS_PATH
+COPY ./s2i/bin/ $STI_SCRIPTS_PATH
+
+RUN chown -R 1001:0 /wildfly && chown -R 1001:0 $HOME/.pki && \
+    chmod -R ug+rw /wildfly && \
+    chmod -R g+rw /opt/s2i/destination
+
+USER 1001
+
+CMD $STI_SCRIPTS_PATH/usage

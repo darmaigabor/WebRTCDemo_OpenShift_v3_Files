@@ -1,0 +1,312 @@
+{
+  "kind": "Template",
+  "apiVersion": "v1",
+  "metadata": {
+    "name": "webrtcdemo-template",
+    "creationTimestamp": null,
+    "annotations": {
+      "description": "WebRTC demo application for Openshift Origin v3"
+    }
+  },
+  "objects": [
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "webrtcdemo-service",
+        "creationTimestamp": null
+      },
+      "spec": {
+        "ports": [
+          {
+            "protocol": "TCP",
+            "port": 8080,
+            "targetPort": 8080
+          }
+        ],
+        "selector": {
+          "name": "webrtcdemo"
+        },
+        "portalIP": "",
+        "type": "ClusterIP",
+        "sessionAffinity": "None"
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "kind": "Route",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "webrtcdemo-route",
+        "creationTimestamp": null
+      },
+      "spec": {
+        "host": "webrtcdemo.openshift.local",
+        "to": {
+          "kind": "Service",
+          "name": "webrtcdemo-service"
+        },
+        "tls": {
+          "termination": "edge"
+        }
+      },
+      "status": {}
+    },
+    {
+      "kind": "ImageStream",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "webrtcdemo",
+        "creationTimestamp": null
+      },
+      "spec": {},
+      "status": {
+        "dockerImageRepository": "172.30.169.170:5000/webrtcdemo/webrtcdemo"
+      }
+    },
+    {
+      "kind": "BuildConfig", 
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "webrtcdemo-build",
+        "creationTimestamp": null,
+        "labels": {
+          "name": "webrtcdemo-build"
+        }
+      },
+      "spec": {
+        "triggers": [
+          {
+            "type": "GitHub",
+            "github": {
+              "secret": "secretWebRTCDemo1234"
+            }
+          },
+          {
+            "type": "Generic",
+            "generic": {
+              "secret": "secretWebRTCDemo1234"
+            }
+          },
+          {
+            "type": "ImageChange",
+            "imageChange": {}
+          },
+          {
+            "type": "ConfigChange"
+          }
+        ],
+        "source": {
+          "type": "Git",
+          "git": {
+            "uri": "https://github.com/darmaigabor/WebRTCDemo.git"
+          }
+        },
+        "strategy": {
+            "type": "Source",
+            "sourceStrategy": {
+                "from": {
+                    "kind": "DockerImage",
+                    "name": "172.30.169.170:5000/webrtcdemo/wildfly81distcache:v1"
+                }
+            }
+        },
+        "output": {
+          "to": {
+            "kind": "ImageStreamTag",
+            "name": "webrtcdemo:latest"
+          }
+        },
+        "resources": {}
+      },
+      "status": {
+        "lastVersion": 0
+      }
+    },
+    {
+      "kind": "DeploymentConfig",
+      "apiVersion": "v1",
+      "metadata": {
+          "name": "webrtcdemo",
+          "namespace": "webrtcdemo",
+          "labels": {
+          }
+      },
+      "spec": {
+        "strategy": {
+            "type": "Rolling",
+            "rollingParams": {
+                "updatePeriodSeconds": 1,
+                "intervalSeconds": 1,
+                "timeoutSeconds": 600,
+                "maxUnavailable": "25%",
+                "maxSurge": "25%"
+            },
+            "resources": {}
+        },
+        "triggers": [
+            {
+                "type": "ConfigChange"
+            },
+            {
+                "type": "ImageChange",
+                "imageChangeParams": {
+                    "automatic": true,
+                    "containerNames": [
+                        "webrtcdemo"
+                    ],
+                    "from": {
+                        "kind": "ImageStreamTag",
+                        "name": "webrtcdemo:latest"
+                    }
+                }
+            }
+        ],
+        "replicas": 1,
+        "selector": {
+          "name": "webrtcdemo"
+        },
+        "template": {
+            "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                    "name": "webrtcdemo"
+                }
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "name": "webrtcdemo",
+                        "image": "172.30.169.170:5000/webrtcdemo/webrtcdemo",
+                        "ports": [
+                            {
+                                "containerPort": 7600,
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 8080,
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 57600,
+                                "protocol": "TCP"
+                            }
+                        ],
+                        "resources": {},
+                        "terminationMessagePath": "/dev/termination-log",
+                        "imagePullPolicy": "Always",
+                        "readinessProbe": {
+                            "httpGet": {
+                                "path": "/conversations/list",
+                                "port": 8080
+                            },
+                            "initialDelaySeconds": 15,
+                            "timeoutSeconds": 1
+                        }
+                    }
+                ],
+                "restartPolicy": "Always",
+                "terminationGracePeriodSeconds": 30,
+                "dnsPolicy": "ClusterFirst",
+                "securityContext": {}
+            }
+        }
+      },
+      "status": {}
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "gossip-service",
+        "creationTimestamp": null
+      },
+      "spec": {
+        "ports": [
+          {
+            "protocol": "TCP",
+            "port": 12001,
+            "targetPort": 12001
+          }
+        ],
+        "selector": {
+          "name": "gossip"
+        },
+        "portalIP": "",
+        "type": "ClusterIP",
+        "sessionAffinity": "None"
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "kind": "DeploymentConfig",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "gossip",
+        "creationTimestamp": null
+      },
+      "spec": {
+        "strategy": {
+            "type": "Rolling",
+            "rollingParams": {
+                "updatePeriodSeconds": 1,
+                "intervalSeconds": 1,
+                "timeoutSeconds": 600,
+                "maxUnavailable": "25%",
+                "maxSurge": "25%"
+            },
+            "resources": {}
+        },
+        "triggers": [
+          {
+            "type": "ConfigChange"
+          }
+        ],
+        "replicas": 1,
+        "selector": {
+          "name": "gossip"
+        },
+        "template": {
+          "metadata": {
+            "creationTimestamp": null,
+            "labels": {
+              "name": "gossip"
+            }
+          },
+         "spec": {
+            "containers": [
+              {
+                "name": "gossip-server",
+                "image": "172.30.169.170:5000/webrtcdemo/gossip:v1",
+                "ports": [
+                  {
+                    "containerPort": 12001,
+                    "protocol": "TCP"
+                  }
+                ],
+                "resources": {},
+                "terminationMessagePath": "/dev/termination-log",
+                "imagePullPolicy": "Always",
+                "securityContext": {
+                  "capabilities": {},
+                  "privileged": false
+                }
+              }
+            ],
+            "restartPolicy": "Always",
+            "dnsPolicy": "ClusterFirst"
+          }
+        }
+      },
+      "status": {}
+    }
+  ],
+  "labels": {
+    "template": "webrtcdemo-template"
+  }
+}
+
