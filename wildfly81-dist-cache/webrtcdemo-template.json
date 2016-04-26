@@ -196,8 +196,9 @@
                         ],
                         "lifecycle": {
                             "preStop": {
-                                "exec": {
-                                   "command": ["curl http://localhost:8080/conversations/shutdown"] 
+                                "httpGet": {
+                                   "path": "conversations/shutdown",
+                                   "port": 8080 
                                 }
                              } 
                         }, 
