@@ -119,7 +119,12 @@
             "name": "webrtcdemo:latest"
           }
         },
-        "resources": {}
+        "resources": {
+          "limits": {
+            "cpu": "500m",
+            "memory": "2Gi"
+          }
+        }
       },
       "status": {
         "lastVersion": 0
